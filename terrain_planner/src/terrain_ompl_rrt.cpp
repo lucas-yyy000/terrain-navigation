@@ -78,6 +78,7 @@ void TerrainOmplRrt::configureProblem() {
 void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen::Vector3d& goal,
                                   double start_loiter_radius) {
   configureProblem();
+  std::cout << "====> Set up problem with start loiter radius: " << start_loiter_radius << " <======" << std::endl;
   double radius =
       problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
   double delta_theta = 0.1;
@@ -121,7 +122,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen::Vector3d& start_vel,
                                   const Eigen::Vector3d& goal, double goal_radius) {
   configureProblem();
-
+  std::cout << "====> Set up problem with start velocity and goal radius <======" << std::endl;
   double radius;
   if (goal_radius < 0) {
     radius =
@@ -169,6 +170,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
     return;
   }
   configureProblem();
+  std::cout << "====> Set up problem with list of goal positions <======" << std::endl;
 
   double radius =
       problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
@@ -210,6 +212,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen::Vector3d& start_vel,
                                   const Eigen::Vector3d& goal, const Eigen::Vector3d& goal_vel) {
   configureProblem();
+  std::cout << "====> Set up problem with start and goal velocities <======" << std::endl;
 
   ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(
       problem_setup_->getSpaceInformation());

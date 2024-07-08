@@ -89,6 +89,12 @@ add_executable(test_rrt_circle_goal
 add_dependencies(test_rrt_circle_goal terrain_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${GDAL_LIBRARY})
 target_link_libraries(test_rrt_circle_goal ${PROJECT_NAME} ${catkin_LIBRARIES} ${GDAL_LIBRARY} ${OpenCV_LIBRARIES} ${OMPL_LIBRARIES})
 
+add_executable(test_rrt_circle_airsim
+  src/test_rrt_circle_airsim.cpp
+)
+add_dependencies(test_rrt_circle_airsim terrain_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${GDAL_LIBRARY})
+target_link_libraries(test_rrt_circle_airsim ${PROJECT_NAME} ${catkin_LIBRARIES} ${GDAL_LIBRARY} ${OpenCV_LIBRARIES} ${OMPL_LIBRARIES})
+
 add_executable(test_rrt_node
   src/test_rrt_node.cpp
 )

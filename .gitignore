@@ -1,2 +1,6 @@
 .vscode/*
 output/*
+*.tif
+*.txt
+terrain_planner/models/*
+*.world
