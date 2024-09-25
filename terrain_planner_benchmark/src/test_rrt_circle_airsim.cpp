@@ -232,20 +232,23 @@ int main(int argc, char** argv) {
   std::string output_directory;
   nh_private.param<std::string>("output_directory", output_directory, "");
 
-  // // Initialize data logger for recording
-  // auto data_logger_position = std::make_shared<DataLogger>();
-  // data_logger_position->setKeys({"x", "y", "z"});
-  // auto data_logger_attitude = std::make_shared<DataLogger>();
-  // data_logger_attitude->setKeys({"w", "x", "y", "z"});
+  double min_height;
+  nh_private.param<double>("min_height", min_height, 50.0);
+  double max_height;
+  nh_private.param<double>("max_height", max_height, 120.0);
+
+  double time_budget;
+  nh_private.param<double>("time_budget", time_budget, 30.0);
 
   // Load terrain map using grid map.
   auto terrain_map = std::make_shared<TerrainMap>();
   terrain_map->setGridMap(gridMap);
   std::cout << "Set Grid Map..." << std::endl;
 
-  terrain_map->AddLayerDistanceTransform(50.0, "distance_surface");
-  terrain_map->AddLayerDistanceTransform(120.0, "max_elevation");
-  double radius = 70.0;
+  terrain_map->AddLayerDistanceTransform(min_height, "distance_surface");
+  terrain_map->AddLayerDistanceTransform(max_height, "max_elevation");
+  double radius;
+  nh_private.param<double>("loiter_radius", radius, 70.0);
   terrain_map->AddLayerHorizontalDistanceTransform(radius, "ics_+", "distance_surface");
   terrain_map->AddLayerHorizontalDistanceTransform(-radius, "ics_-", "max_elevation");
 
@@ -259,6 +262,10 @@ int main(int argc, char** argv) {
   /// TODO: Get bounds from gridmap
   planner->setBoundsFromMap(terrain_map->getGridMap());
 
+  std::cout << "Set up problem with min and max elevations: " << min_height << " " << max_height << std::endl;
+  std::cout << "RRT time budget: " << time_budget << std::endl;
+  std::cout << "Loiter radius: " << radius << std::endl;
+
   const double map_width_x = terrain_map->getGridMap().getLength().x();
   std::cout << "Map width x: " << map_width_x << std::endl;
   const double map_width_y = terrain_map->getGridMap().getLength().y();
@@ -268,15 +275,15 @@ int main(int argc, char** argv) {
 
   srand (static_cast <unsigned> (time(0)));
 
-  int iter_num = 0;
+  int iter_num = 1000;
   // Collect training data.
-  while (iter_num < 500) {
+  while (iter_num < 1500) {
     std::cout << "Number of Collected Demonstrations: " << iter_num << std::endl;
     // Initialize data logger for recording
-    auto data_logger_position = std::make_shared<DataLogger>();
-    data_logger_position->setKeys({"x", "y", "z"});
-    auto data_logger_attitude = std::make_shared<DataLogger>();
-    data_logger_attitude->setKeys({"w", "x", "y", "z"});
+    auto data_logger_states = std::make_shared<DataLogger>();
+    data_logger_states->setKeys({"x", "y", "z", "qw", "qx", "qy", "qz", "min_dist", "max_dist"});
+    // auto data_logger_attitude = std::make_shared<DataLogger>();
+    // data_logger_attitude->setKeys({"w", "x", "y", "z"});
 
     float start_x_ratio = 0.3*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
     float start_y_ratio = 0.3*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
@@ -286,6 +293,7 @@ int main(int argc, char** argv) {
 
     // Note that the z coordiante does not matter. validatePosition will set the z coordiante to be in the middle of the two layers: max_elevation, distance_surface.
     Eigen::Vector3d start{Eigen::Vector3d(map_pos(0) - start_x_ratio * map_width_x, map_pos(1) - start_y_ratio * map_width_y, 0.0)};
+    // Eigen::Vector3d start{Eigen::Vector3d(-434.607, -7.5287, 0.0)};
     Eigen::Vector3d updated_start;
     std::cout << "Sampled start position: " << start << std::endl;
     if (validatePosition(terrain_map, start, updated_start)) {
@@ -297,6 +305,7 @@ int main(int argc, char** argv) {
       continue;
     }
     Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + end_x_ratio * map_width_x, map_pos(1) + end_y_ratio * map_width_y, 0.0)};
+    // Eigen::Vector3d goal{Eigen::Vector3d(3080.63, 2466.42, 0.0)};
     std::cout << "Sampled goal position: " << goal << std::endl;
     Eigen::Vector3d updated_goal;
     if (validatePosition(terrain_map, goal, updated_goal)) {
@@ -310,7 +319,7 @@ int main(int argc, char** argv) {
     
 
     planner->setupProblem(start, goal, radius);
-    if (planner->Solve(30.0, path)) {
+    if (planner->Solve(time_budget, path)) {
       std::cout << "[TestRRTCircleGoal] Found Solution!" << std::endl;
     } else {
       std::cout << "[TestRRTCircleGoal] Unable to find solution" << std::endl;
@@ -341,33 +350,31 @@ int main(int argc, char** argv) {
     publishCircleSetpoints(goal_pos_pub, goal, radius);
     publishTree(trajectory_pub, planner->getPlannerData(), planner->getProblemSetup());
     /// TODO: Save planned path into a csv file for plotting
-    for (auto& point : path.position()) {
-      std::unordered_map<std::string, std::any> state;
-      state.insert(std::pair<std::string, double>("x", point(0)));
-      state.insert(std::pair<std::string, double>("y", point(1)));
-      state.insert(std::pair<std::string, double>("z", point(2)));
-      data_logger_position->record(state);
-    }
-    for (auto& att : path.attitude()) {
-      std::unordered_map<std::string, std::any> state;
-      state.insert(std::pair<std::string, double>("w", att(0)));
-      state.insert(std::pair<std::string, double>("x", att(1)));
-      state.insert(std::pair<std::string, double>("y", att(2)));
-      state.insert(std::pair<std::string, double>("z", att(3)));
-      data_logger_attitude->record(state);
+    for (std::size_t i = 1; i < path.segments.size() - 1; ++i) {
+      for (auto segment_state: path.segments[i].states) {
+        Eigen::Vector3d segment_pos = segment_state.position;
+        Eigen::Vector4d segment_att = segment_state.attitude;
+        std::unordered_map<std::string, std::any> state;
+        state.insert(std::pair<std::string, double>("x", segment_pos(0)));
+        state.insert(std::pair<std::string, double>("y", segment_pos(1)));
+        state.insert(std::pair<std::string, double>("z", segment_pos(2)));
+        state.insert(std::pair<std::string, double>("qw", segment_att(0)));
+        state.insert(std::pair<std::string, double>("qx", segment_att(1)));
+        state.insert(std::pair<std::string, double>("qy", segment_att(2)));
+        state.insert(std::pair<std::string, double>("qz", segment_att(3)));
+        state.insert(std::pair<std::string, double>("min_dist", min_height));
+        state.insert(std::pair<std::string, double>("max_dist", max_height));
+        data_logger_states->record(state);
+      }
     }
 
-    data_logger_position->setPrintHeader(true);
-    std::string position_output_file_path = output_directory + "/airsim_planned_path_position_" + std::to_string(iter_num) + ".csv";
-    data_logger_position->writeToFile(position_output_file_path);
-
-    data_logger_attitude->setPrintHeader(true);
-    std::string attitude_output_file_path = output_directory + "/airsim_planned_path_attitude_" + std::to_string(iter_num) + ".csv";
-    data_logger_attitude->writeToFile(attitude_output_file_path);
+    data_logger_states->setPrintHeader(true);
+    std::string states_output_file_path = output_directory + "/" + std::to_string(iter_num) + "_states" + ".csv";
+    data_logger_states->writeToFile(states_output_file_path);
 
     iter_num++;
 
-    ros::Duration(1.0).sleep();
+    ros::Duration(0.1).sleep();
   }
 
   ros::spin();
