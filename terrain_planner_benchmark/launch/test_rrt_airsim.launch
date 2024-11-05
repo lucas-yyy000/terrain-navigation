@@ -6,12 +6,16 @@
     <node pkg="tf" type="static_transform_publisher" name="world_map" args="0 0 0 0 0 0 world map 10"/>
 
     <node pkg="terrain_planner_benchmark" type="test_rrt_circle_airsim" name="rrt_planner" output="screen">
-        <!-- <param name="output_directory" value="/media/lucas/T9/low_altitude_flight_data/trajectories"/> -->
-        <param name="output_directory" value="/home/lucas/Workspace/low_altitude_flight/low_altitude_flight/airsim_dev/data/expert_distribution"/>
-        <param name="min_height" type="double" value='75.0'/>
-        <param name="max_height" type="double" value='100.0'/>
-        <param name="time_budget" type="double" value='45.0'/>
-        <param name="loiter_radius" type="double" value='50.0'/>
+        <param name="output_directory" value="/media/lucas/T9/low_altitude_flight_data/trajectories_test"/>
+        <!-- <param name="output_directory" value="/home/lucas/Workspace/low_altitude_flight/low_altitude_flight/airsim_dev/data/expert_distribution"/> -->
+        <param name="collect_data_num" type="int" value='1500'/>
+        <param name="starting_index" type="int" value='0'/>
+        <param name="mode_repeats" type="int" value='1'/>
+        <param name="max_mode_repeats" type="int" value='2'/>
+        <param name="min_height" type="double" value='0'/>
+        <param name="max_height" type="double" value='3.0'/>
+        <param name="time_budget" type="double" value='30.0'/>
+        <param name="loiter_radius" type="double" value='1.0'/>
     </node>
     <group if="$(arg visualization)">
         <node type="rviz" name="rviz" pkg="rviz" args="-d $(find terrain_planner)/launch/config_ompl.rviz" />

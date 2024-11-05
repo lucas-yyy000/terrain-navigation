@@ -50,6 +50,9 @@ void TerrainOmplRrt::configureProblem() {
   problem_setup_->clear();
   problem_setup_->clearStartStates();
 
+  // Set grid map to be used for cost calculation.
+  problem_setup_->setMap(map_);
+
   problem_setup_->setDefaultPlanner();
   problem_setup_->setDefaultObjective();
   // assert(map);
@@ -79,12 +82,10 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
                                   double start_loiter_radius) {
   configureProblem();
   std::cout << "====> Set up problem with start loiter radius: " << start_loiter_radius << " <======" << std::endl;
-  double radius =
-      problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
+  double radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
   double delta_theta = 0.1;
   for (double theta = -M_PI; theta < M_PI; theta += (delta_theta * 2 * M_PI)) {
-    ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(
-        problem_setup_->getSpaceInformation());
+    ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(problem_setup_->getSpaceInformation());
 
     start_ompl->setX(start_pos(0) + std::abs(start_loiter_radius) * std::cos(theta));
     start_ompl->setY(start_pos(1) + std::abs(start_loiter_radius) * std::sin(theta));
@@ -125,14 +126,12 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
   std::cout << "====> Set up problem with start velocity and goal radius <======" << std::endl;
   double radius;
   if (goal_radius < 0) {
-    radius =
-        problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
+    radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
   } else {
     radius = goal_radius;
   }
   double delta_theta = 0.1;
-  ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(
-      problem_setup_->getSpaceInformation());
+  ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(problem_setup_->getSpaceInformation());
 
   start_ompl->setX(start_pos(0));
   start_ompl->setY(start_pos(1));
@@ -172,8 +171,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
   configureProblem();
   std::cout << "====> Set up problem with list of goal positions <======" << std::endl;
 
-  double radius =
-      problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
+  double radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
   double delta_theta = 0.1;
   ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(
       problem_setup_->getSpaceInformation());
@@ -205,7 +203,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
     }
   }
   problem_setup_->setGoal(goal_states_);
-
+  
   problem_setup_->setup();
 }
 
