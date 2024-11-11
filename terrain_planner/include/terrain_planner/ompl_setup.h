@@ -47,8 +47,8 @@ public:
         }
         // std::cout << "Terrain Elevation: " << terrain_elevation << std::endl;
         // std::cout << "Relative Elevation: " << z - terrain_elevation << std::endl;
-        // return ompl::base::Cost(abs(z - terrain_elevation));
-        return ompl::base::Cost(0.0);
+        return ompl::base::Cost(abs(z - terrain_elevation));
+        // return ompl::base::Cost(0.0);
     }
 
 private:
@@ -71,14 +71,11 @@ class OmplSetup : public geometric::SimpleSetup {
   }
 
   void setDefaultObjective() {
-    // setOptimizationObjective(getLowAltitudeFlightObjective(getSpaceInformation()));
     auto lengthObj(std::make_shared<ompl::base::PathLengthOptimizationObjective>(getSpaceInformation()));
-    // auto noeObj = getLowAltitudeFlightObjective(getSpaceInformation());
+    auto noeObj = getLowAltitudeFlightObjective(getSpaceInformation());
     auto opt = std::make_shared<ompl::base::MultiOptimizationObjective>(getSpaceInformation());
-    opt->addObjective(lengthObj, 5.0);
-    // opt->addObjective(noeObj, 1.0);
-
-    // return ob::OptimizationObjectivePtr(opt);
+    opt->addObjective(lengthObj, 1000.0);
+    opt->addObjective(noeObj, 1.0);
     setOptimizationObjective(ob::OptimizationObjectivePtr(opt));
   }
 
@@ -86,8 +83,8 @@ class OmplSetup : public geometric::SimpleSetup {
     switch (planner_type) {
       case PlannerType::RRTSTAR: {
         auto planner = std::make_shared<ompl::geometric::RRTstar>(getSpaceInformation());
-        planner->setRange(600.0);
-        // planner->setGoalBias(goal_bias);
+        planner->setRange(200.0);
+        planner->setGoalBias(planner->getGoalBias());
         setPlanner(planner);
         break;
       }

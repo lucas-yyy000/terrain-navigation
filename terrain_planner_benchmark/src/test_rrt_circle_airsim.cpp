@@ -293,10 +293,10 @@ int main(int argc, char** argv) {
     // auto data_logger_attitude = std::make_shared<DataLogger>();
     // data_logger_attitude->setKeys({"w", "x", "y", "z"});
 
-    float start_x_ratio = 0.35*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
-    float start_y_ratio = 0.35*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
-    float end_x_ratio = 0.35*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
-    float end_y_ratio = 0.35*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
+    float start_x_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
+    float start_y_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
+    float end_x_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
+    float end_y_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
 
     float start_x_sgn;
     float start_y_sgn;
@@ -312,8 +312,15 @@ int main(int argc, char** argv) {
 
     // Note that the z coordiante does not matter. validatePosition will set the z coordiante to be in the middle of the two layers: max_elevation, distance_surface.
     Eigen::Vector3d start{Eigen::Vector3d(map_pos(0)  + start_x_sgn * start_x_ratio * map_width_x, map_pos(1) + start_y_sgn * start_y_ratio * map_width_y, 0.0)};
-    Eigen::Vector3d updated_start;
+    Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + end_x_sgn * end_x_ratio * map_width_x, map_pos(1) + end_y_sgn * end_y_ratio * map_width_y, 0.0)};
     std::cout << "Sampled start position: " << start << std::endl;
+    std::cout << "Sampled goal position: " << goal << std::endl;
+    if ((goal - start).norm() < 300.0) {
+      std::cout << "Start and goal too close" << std::endl;
+      continue;
+    }
+    Eigen::Vector3d updated_start;
+
     if (validatePosition(terrain_map, start, updated_start)) {
       start = updated_start;
       std::cout << "Specified start position is valid" << std::endl;
@@ -322,8 +329,8 @@ int main(int argc, char** argv) {
       std::cout << "Specified start position is NOT valid" << std::endl;
       continue;
     }
-    Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + end_x_sgn * end_x_ratio * map_width_x, map_pos(1) + end_y_sgn * end_y_ratio * map_width_y, 0.0)};
-    std::cout << "Sampled goal position: " << goal << std::endl;
+    
+    
     Eigen::Vector3d updated_goal;
     if (validatePosition(terrain_map, goal, updated_goal)) {
       goal = updated_goal;
