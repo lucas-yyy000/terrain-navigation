@@ -82,7 +82,10 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
                                   double start_loiter_radius) {
   configureProblem();
   std::cout << "====> Set up problem with start loiter radius: " << start_loiter_radius << " <======" << std::endl;
+  // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMinTurningRadius(10.0);
+  // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMaxClimbingAngle(0.3);
   double radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
+  problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->printStateSpaceProperties();
   double delta_theta = 0.1;
   for (double theta = -M_PI; theta < M_PI; theta += (delta_theta * 2 * M_PI)) {
     ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(problem_setup_->getSpaceInformation());
@@ -116,7 +119,10 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 
   problem_setup_->setup();
 
+  
   auto planner_ptr = problem_setup_->getPlanner();
+  std::cout << "====>  Finish setting up problem.  <======" << std::endl;
+  // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->printStateSpaceProperties();
   // std::cout << "Planner Range: " << planner_ptr->as<ompl::geometric::RRTstar>()->getRange() << std::endl;
 }
 

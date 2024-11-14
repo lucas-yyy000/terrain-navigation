@@ -193,16 +193,16 @@ PathSegment generateArcTrajectory(Eigen::Vector3d rate, const double horizon, Ei
 }
 
 
-PathSegment getLoiterPath(Eigen::Vector3d end_position, Eigen::Vector3d end_velocity, Eigen::Vector3d center_pos) {
-  Eigen::Vector3d radial_vector = (end_position - center_pos);
-  radial_vector(2) = 0.0;  // Only consider horizontal loiters
-  Eigen::Vector3d emergency_rates =
-      20.0 * end_velocity.normalized().cross(radial_vector.normalized()) / radial_vector.norm();
-  double horizon = 2 * M_PI / std::abs(emergency_rates(2));
-  // Append a loiter at the end of the planned path
-  PathSegment loiter_trajectory = generateArcTrajectory(emergency_rates, horizon, end_position, end_velocity);
-  return loiter_trajectory;
-}
+// PathSegment getLoiterPath(Eigen::Vector3d end_position, Eigen::Vector3d end_velocity, Eigen::Vector3d center_pos) {
+//   Eigen::Vector3d radial_vector = (end_position - center_pos);
+//   radial_vector(2) = 0.0;  // Only consider horizontal loiters
+//   Eigen::Vector3d emergency_rates =
+//       20.0 * end_velocity.normalized().cross(radial_vector.normalized()) / radial_vector.norm();
+//   double horizon = 2 * M_PI / std::abs(emergency_rates(2));
+//   // Append a loiter at the end of the planned path
+//   PathSegment loiter_trajectory = generateArcTrajectory(emergency_rates, horizon, end_position, end_velocity);
+//   return loiter_trajectory;
+// }
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "airsim_rrt_planner");
@@ -248,11 +248,11 @@ int main(int argc, char** argv) {
   terrain_map->AddLayerDistanceTransform(min_height, "distance_surface");
   terrain_map->AddLayerDistanceTransform(max_height, "max_elevation");
   double radius;
-  nh_private.param<double>("loiter_radius", radius, 1.0);
+  nh_private.param<double>("loiter_radius", radius, 10.0);
   terrain_map->AddLayerHorizontalDistanceTransform(radius, "ics_+", "distance_surface");
   terrain_map->AddLayerHorizontalDistanceTransform(-radius, "ics_-", "max_elevation");
 
-  // Path path;
+  // terrain_map->AddLayerOffset(offset_distance, "offset_surface");
 
   // Initialize planner with loaded terrain map
   auto planner = std::make_shared<TerrainOmplRrt>();
@@ -287,12 +287,8 @@ int main(int argc, char** argv) {
   // Collect training data.
   while (iter_num < max_iter_num) {
     std::cout << "Number of Collected Demonstrations: " << iter_num << std::endl;
-    // // Initialize data logger for recording
-    // auto data_logger_states = std::make_shared<DataLogger>();
-    // data_logger_states->setKeys({"x", "y", "z", "qw", "qx", "qy", "qz", "min_dist", "max_dist"});
-    // auto data_logger_attitude = std::make_shared<DataLogger>();
-    // data_logger_attitude->setKeys({"w", "x", "y", "z"});
 
+    // Generate random start and end location.
     float start_x_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
     float start_y_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
     float end_x_ratio = 0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + 0.1;
@@ -313,9 +309,11 @@ int main(int argc, char** argv) {
     // Note that the z coordiante does not matter. validatePosition will set the z coordiante to be in the middle of the two layers: max_elevation, distance_surface.
     Eigen::Vector3d start{Eigen::Vector3d(map_pos(0)  + start_x_sgn * start_x_ratio * map_width_x, map_pos(1) + start_y_sgn * start_y_ratio * map_width_y, 0.0)};
     Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + end_x_sgn * end_x_ratio * map_width_x, map_pos(1) + end_y_sgn * end_y_ratio * map_width_y, 0.0)};
+    // Eigen::Vector3d start{Eigen::Vector3d(map_pos(0)  + start_x_sgn * start_x_ratio * map_width_x, map_pos(1) + start_y_sgn * start_y_ratio * map_width_y, 0.0)};
+    // Eigen::Vector3d goal{Eigen::Vector3d(4000.0, 15000.0, 0.0)};
     std::cout << "Sampled start position: " << start << std::endl;
     std::cout << "Sampled goal position: " << goal << std::endl;
-    if ((goal - start).norm() < 300.0) {
+    if ((goal - start).norm() < 5000.0) {
       std::cout << "Start and goal too close" << std::endl;
       continue;
     }
@@ -364,17 +362,16 @@ int main(int argc, char** argv) {
         continue;
       }
 
-      Eigen::Vector3d start_position = path.firstSegment().states.front().position;
-      Eigen::Vector3d start_velocity = path.firstSegment().states.front().velocity;
+      // Eigen::Vector3d start_position = path.firstSegment().states.front().position;
+      // Eigen::Vector3d start_velocity = path.firstSegment().states.front().velocity;
 
-      PathSegment start_loiter_path = getLoiterPath(start_position, start_velocity, start);
-      path.prependSegment(start_loiter_path);
+      // PathSegment start_loiter_path = getLoiterPath(start_position, start_velocity, start);
+      // path.prependSegment(start_loiter_path);
 
-      Eigen::Vector3d end_position = path.lastSegment().states.back().position;
-      Eigen::Vector3d end_velocity = path.lastSegment().states.back().velocity;
-      PathSegment goal_loiter_path = getLoiterPath(end_position, end_velocity, goal);
-
-      path.appendSegment(goal_loiter_path);
+      // Eigen::Vector3d end_position = path.lastSegment().states.back().position;
+      // Eigen::Vector3d end_velocity = path.lastSegment().states.back().velocity;
+      // PathSegment goal_loiter_path = getLoiterPath(end_position, end_velocity, goal);
+      // path.appendSegment(goal_loiter_path);
 
       // Repeatedly publish results
       terrain_map->getGridMap().setTimestamp(ros::Time::now().toNSec());
