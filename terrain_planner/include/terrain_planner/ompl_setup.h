@@ -21,9 +21,10 @@
 #include <ompl/geometric/planners/rrt/InformedRRTstar.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 #include <ompl/geometric/planners/rrt/RRTstar.h>
+#include <ompl/geometric/planners/prm/PRMstar.h>
 #include "ompl/base/SpaceInformation.h"
 
-enum PlannerType { RRTSTAR, INFORMED_RRTSTAR, RRTCONNECT, BITSTAR, FMTSTAR };
+enum PlannerType { RRTSTAR, PRMSTAR, INFORMED_RRTSTAR, RRTCONNECT, BITSTAR, FMTSTAR };
 
 
 
@@ -42,12 +43,13 @@ public:
         double z = s->as<fw_planning::spaces::DubinsAirplaneStateSpace::StateType>()->getZ();
         double terrain_elevation = 0;
         // I don't understand why there are points out of the map. Shouldn't the sampler take care of this?
-        if (map_.isInside(Eigen::Vector2d(x, y))) {
-          terrain_elevation = map_.atPosition("elevation", Eigen::Vector2d(x, y));
-        }
+        // if (map_.isInside(Eigen::Vector2d(x, y))) {
+        //   terrain_elevation = map_.atPosition("elevation", Eigen::Vector2d(x, y));
+        // }
         // std::cout << "Terrain Elevation: " << terrain_elevation << std::endl;
         // std::cout << "Relative Elevation: " << z - terrain_elevation << std::endl;
-        return ompl::base::Cost(abs(z - terrain_elevation));
+        // return ompl::base::Cost(abs(z - terrain_elevation));
+        return ompl::base::Cost(abs(z/10.0));
         // return ompl::base::Cost(0.0);
     }
 
@@ -74,7 +76,7 @@ class OmplSetup : public geometric::SimpleSetup {
     auto lengthObj(std::make_shared<ompl::base::PathLengthOptimizationObjective>(getSpaceInformation()));
     auto noeObj = getLowAltitudeFlightObjective(getSpaceInformation());
     auto opt = std::make_shared<ompl::base::MultiOptimizationObjective>(getSpaceInformation());
-    opt->addObjective(lengthObj, 1000.0);
+    opt->addObjective(lengthObj, 1.0);
     opt->addObjective(noeObj, 1.0);
     setOptimizationObjective(ob::OptimizationObjectivePtr(opt));
   }
@@ -83,11 +85,18 @@ class OmplSetup : public geometric::SimpleSetup {
     switch (planner_type) {
       case PlannerType::RRTSTAR: {
         auto planner = std::make_shared<ompl::geometric::RRTstar>(getSpaceInformation());
-        planner->setRange(600.0);
+        planner->setRange(50.0);
         planner->setGoalBias(planner->getGoalBias());
         setPlanner(planner);
         break;
       }
+      // case PlannerType::PRMSTAR: {
+      //   auto planner = std::make_shared<ompl::geometric::PRMstar>(getSpaceInformation());
+      //   planner->setRange(600.0);
+      //   planner->setGoalBias(planner->getGoalBias());
+      //   setPlanner(planner);
+      //   break;
+      // }
       case PlannerType::RRTCONNECT: {
         auto planner = std::make_shared<ompl::geometric::RRTConnect>(getSpaceInformation());
         planner->setRange(600.0);

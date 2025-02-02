@@ -247,7 +247,7 @@ class TerrainPlanner {
   // Altitude tracking loop parameters
   /// TODO: This needs to be handed over to TECS
   double K_z_{2.0};
-  double cruise_speed_{20.0};
+  double cruise_speed_{70.0};
   double max_climb_rate_control_{5.0};
 
   std::string map_path_{};

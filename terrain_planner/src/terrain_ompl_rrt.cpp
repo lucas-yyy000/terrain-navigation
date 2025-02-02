@@ -57,8 +57,9 @@ void TerrainOmplRrt::configureProblem() {
   problem_setup_->setDefaultObjective();
   // assert(map);
   problem_setup_->setTerrainCollisionChecking(map_->getGridMap(), check_max_altitude_);
-  // problem_setup_->getStateSpace()->setStateSamplerAllocator(
-  //     std::bind(&TerrainOmplRrt::allocTerrainStateSampler, this, std::placeholders::_1));
+  // problem_setup_->getStateSpace()->setStateSamplerAllocator(std::bind(&TerrainOmplRrt::allocTerrainStateSampler, this, std::placeholders::_1));
+  
+  
   // problem_setup_->getStateSpace()->allocStateSampler();
   ompl::base::RealVectorBounds bounds(3);
   bounds.setLow(0, lower_bound_.x());
@@ -73,27 +74,28 @@ void TerrainOmplRrt::configureProblem() {
   problem_setup_->getGeometricComponentStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setBounds(
       bounds);
 
-  problem_setup_->setStateValidityCheckingResolution(0.001);
+  problem_setup_->setStateValidityCheckingResolution(0.1);
 
   planner_data_ = std::make_shared<ompl::base::PlannerData>(problem_setup_->getSpaceInformation());
 }
 
 void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen::Vector3d& goal,
-                                  double start_loiter_radius) {
+                                  double turning_radius) {
   configureProblem();
-  std::cout << "====> Set up problem with start loiter radius: " << start_loiter_radius << " <======" << std::endl;
-  // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMinTurningRadius(10.0);
-  // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMaxClimbingAngle(0.3);
+  std::cout << "====> Set up problem with minimun turning radius: " << turning_radius << " <======" << std::endl;
+  problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMinTurningRadius(turning_radius);
+  problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setMaxClimbingAngle(0.6);
   double radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
+  std::cout << "====> Minimum turning radius: " << radius << " <======" << std::endl;
   problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->printStateSpaceProperties();
   double delta_theta = 0.1;
   for (double theta = -M_PI; theta < M_PI; theta += (delta_theta * 2 * M_PI)) {
     ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(problem_setup_->getSpaceInformation());
 
-    start_ompl->setX(start_pos(0) + std::abs(start_loiter_radius) * std::cos(theta));
-    start_ompl->setY(start_pos(1) + std::abs(start_loiter_radius) * std::sin(theta));
+    start_ompl->setX(start_pos(0) + std::abs(turning_radius) * std::cos(theta));
+    start_ompl->setY(start_pos(1) + std::abs(turning_radius) * std::sin(theta));
     start_ompl->setZ(start_pos(2));
-    double start_yaw = bool(start_loiter_radius > 0) ? theta - M_PI_2 : theta + M_PI_2;
+    double start_yaw = bool(turning_radius > 0) ? theta - M_PI_2 : theta + M_PI_2;
     wrap_pi(start_yaw);
     start_ompl->setYaw(start_yaw);
     problem_setup_->addStartState(start_ompl);
@@ -101,19 +103,26 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 
   goal_states_ = std::make_shared<ompl::base::GoalStates>(problem_setup_->getSpaceInformation());
   for (double theta = -M_PI; theta < M_PI; theta += (delta_theta * 2 * M_PI)) {
-    ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> goal_ompl(
-        problem_setup_->getSpaceInformation());
-    goal_ompl->setX(goal(0) + radius * std::cos(theta));
-    goal_ompl->setY(goal(1) + radius * std::sin(theta));
-    goal_ompl->setZ(goal(2));
-    double goal_yaw = theta + M_PI_2;
-    wrap_pi(goal_yaw);
-    goal_ompl->setYaw(goal_yaw);
-    goal_states_->addState(goal_ompl);
-    goal_yaw = theta - M_PI_2;
-    wrap_pi(goal_yaw);
-    goal_ompl->setYaw(goal_yaw);
-    goal_states_->addState(goal_ompl);  // Add additional state for bidirectional tangents
+    double x = goal(0) + radius * std::cos(theta);
+    double y = goal(1) + radius * std::sin(theta);
+    for (double delta_z = 0; delta_z < 50.0; delta_z += 5.0) {
+      ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> goal_ompl(problem_setup_->getSpaceInformation());
+      goal_ompl->setX(x);
+      goal_ompl->setY(y);
+      if (map_->getGridMap().isInside(Eigen::Vector2d(x, y))) {
+          goal_ompl->setZ(map_->getGridMap().atPosition("elevation", Eigen::Vector2d(x, y)) + delta_z);
+      } else {
+        goal_ompl->setZ(goal(2));
+      }
+      double goal_yaw = theta + M_PI_2;
+      wrap_pi(goal_yaw);
+      goal_ompl->setYaw(goal_yaw);
+      goal_states_->addState(goal_ompl);
+      goal_yaw = theta - M_PI_2;
+      wrap_pi(goal_yaw);
+      goal_ompl->setYaw(goal_yaw);
+      goal_states_->addState(goal_ompl);  // Add additional state for bidirectional tangents
+    }
   }
   problem_setup_->setGoal(goal_states_);
 
@@ -121,7 +130,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 
   
   auto planner_ptr = problem_setup_->getPlanner();
-  std::cout << "====>  Finish setting up problem.  <======" << std::endl;
+  std::cout << "====>  Finished setting up problem.  <======" << std::endl;
   // problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->printStateSpaceProperties();
   // std::cout << "Planner Range: " << planner_ptr->as<ompl::geometric::RRTstar>()->getRange() << std::endl;
 }
@@ -179,8 +188,7 @@ void TerrainOmplRrt::setupProblem(const Eigen::Vector3d& start_pos, const Eigen:
 
   double radius = problem_setup_->getStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->getMinTurningRadius();
   double delta_theta = 0.1;
-  ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(
-      problem_setup_->getSpaceInformation());
+  ompl::base::ScopedState<fw_planning::spaces::DubinsAirplaneStateSpace> start_ompl(problem_setup_->getSpaceInformation());
 
   start_ompl->setX(start_pos(0));
   start_ompl->setY(start_pos(1));
