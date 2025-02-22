@@ -127,7 +127,8 @@ bool validatePosition(std::shared_ptr<TerrainMap> map, const Eigen::Vector3d goa
   const bool is_goal_valid = (upper_surface < lower_surface) ? true : false;
   valid_goal(0) = goal(0);
   valid_goal(1) = goal(1);
-  valid_goal(2) = (upper_surface + lower_surface) / 2.0;
+  float ratio = 0.3*(static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+  valid_goal(2) = lower_surface + ratio*(upper_surface - lower_surface);
   return is_goal_valid;
 }
 
@@ -263,9 +264,6 @@ int main(int argc, char** argv) {
   const Eigen::Vector2d map_pos = terrain_map->getGridMap().getPosition();
   std::cout << "Grid Map position: " << map_pos << std::endl;
 
-  srand (static_cast <unsigned> (time(0)));
-  std::random_device rd;
-  std::mt19937 gen(rd());
   int iter_num;
   nh_private.param<int>("starting_index", iter_num, 0);
   int mode_repeats;
@@ -276,6 +274,9 @@ int main(int argc, char** argv) {
   nh_private.param<int>("collect_data_num", max_iter_num, 100);
   // Collect training data.
   while (iter_num < max_iter_num) {
+    srand (static_cast <unsigned> (time(0)));
+    std::random_device rd;
+    std::mt19937 gen(rd());
     std::cout << "Number of Collected Demonstrations: " << iter_num << std::endl;
 
     // Generate random start and end location.
@@ -291,18 +292,34 @@ int main(int argc, char** argv) {
 
     std::uniform_int_distribution<int> distribution(0, 1);
     
-    start_x_sgn = distribution(gen) ? 1.0:-1.0;
-    start_y_sgn = distribution(gen) ? 1.0:-1.0;
-    end_x_sgn = distribution(gen) ? 1.0:-1.0;
-    end_y_sgn = distribution(gen) ? 1.0:-1.0;
+    // start_x_sgn = distribution(gen) ? 1.0:-1.0;
+    // start_y_sgn = distribution(gen) ? 1.0:-1.0;
+    // end_x_sgn = distribution(gen) ? 1.0:-1.0;
+    // end_y_sgn = distribution(gen) ? 1.0:-1.0;
+
+    start_x_sgn = -1.0;
+    start_y_sgn = -1.0;
+    end_x_sgn = -1.0;
+    end_y_sgn = -1.0;
+
+    float start_x_offset;
+    float start_y_offset;
+    float end_x_offset;
+    float end_y_offset;
+
+    start_x_offset = distribution(gen) ? 0.0:1.0;
+    start_y_offset = distribution(gen) ? 0.0:1.0;
+    end_x_offset = distribution(gen) ? 0.0:1.0;
+    end_y_offset = distribution(gen) ? 0.0:1.0;
+    float offset_magnitude = 10.0;
 
     // Note that the z coordiante does not matter. validatePosition will set the z coordiante to be in the middle of the two layers: max_elevation, distance_surface.
-    Eigen::Vector3d start{Eigen::Vector3d(map_pos(0)  + start_x_sgn * start_x_ratio * map_width_x, map_pos(1) + start_y_sgn * start_y_ratio * map_width_y, 0.0)};
-    Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + end_x_sgn * end_x_ratio * map_width_x, map_pos(1) + end_y_sgn * end_y_ratio * map_width_y, 0.0)};
+    Eigen::Vector3d start{Eigen::Vector3d(map_pos(0) + offset_magnitude*start_x_offset  + start_x_sgn * start_x_ratio * map_width_x, map_pos(1) + offset_magnitude*start_y_offset + start_y_sgn * start_y_ratio * map_width_y, 0.0)};
+    Eigen::Vector3d goal{Eigen::Vector3d(map_pos(0) + offset_magnitude*end_x_offset + end_x_sgn * end_x_ratio * map_width_x, map_pos(1) + offset_magnitude*end_y_offset + end_y_sgn * end_y_ratio * map_width_y, 0.0)};
 
     std::cout << "Sampled start position: " << start << std::endl;
     std::cout << "Sampled goal position: " << goal << std::endl;
-    if ((goal - start).norm() < 10.0) {
+    if ((goal - start).norm() < 100.0) {
       std::cout << "Start and goal too close" << std::endl;
       continue;
     }
@@ -333,7 +350,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < mode_repeats; i++) {
       // Initialize data logger for recording
       auto data_logger_states = std::make_shared<DataLogger>();
-      data_logger_states->setKeys({"x", "y", "z", "qw", "qx", "qy", "qz", "min_dist", "max_dist"});
+      data_logger_states->setKeys({"x", "y", "z", "vx", "vy", "vz", "qw", "qx", "qy", "qz", "min_dist", "max_dist"});
       Path path;
 
       num_trials++;
@@ -368,15 +385,23 @@ int main(int argc, char** argv) {
       for (std::size_t i = 1; i < path.segments.size() - 1; ++i) {
         for (auto segment_state: path.segments[i].states) {
           Eigen::Vector3d segment_pos = segment_state.position;
+          Eigen::Vector3d segment_vel = segment_state.velocity;
           Eigen::Vector4d segment_att = segment_state.attitude;
+
           std::unordered_map<std::string, std::any> state;
           state.insert(std::pair<std::string, double>("x", segment_pos(0)));
           state.insert(std::pair<std::string, double>("y", segment_pos(1)));
           state.insert(std::pair<std::string, double>("z", segment_pos(2)));
+
+          state.insert(std::pair<std::string, double>("vx", segment_vel(0)));
+          state.insert(std::pair<std::string, double>("vy", segment_vel(1)));
+          state.insert(std::pair<std::string, double>("vz", segment_vel(2)));
+
           state.insert(std::pair<std::string, double>("qw", segment_att(0)));
           state.insert(std::pair<std::string, double>("qx", segment_att(1)));
           state.insert(std::pair<std::string, double>("qy", segment_att(2)));
           state.insert(std::pair<std::string, double>("qz", segment_att(3)));
+
           state.insert(std::pair<std::string, double>("min_dist", min_height));
           state.insert(std::pair<std::string, double>("max_dist", max_height));
           data_logger_states->record(state);
@@ -389,7 +414,7 @@ int main(int argc, char** argv) {
       
       iter_num++;
 
-      ros::Duration(0.01).sleep();
+      ros::Duration(0.001).sleep();
     }
 
   }
