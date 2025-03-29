@@ -74,7 +74,7 @@ void TerrainOmplRrt::configureProblem() {
   problem_setup_->getGeometricComponentStateSpace()->as<fw_planning::spaces::DubinsAirplaneStateSpace>()->setBounds(
       bounds);
 
-  problem_setup_->setStateValidityCheckingResolution(0.1);
+  problem_setup_->setStateValidityCheckingResolution(0.01);
 
   planner_data_ = std::make_shared<ompl::base::PlannerData>(problem_setup_->getSpaceInformation());
 }

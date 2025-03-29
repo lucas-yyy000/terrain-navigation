@@ -127,8 +127,9 @@ bool validatePosition(std::shared_ptr<TerrainMap> map, const Eigen::Vector3d goa
   const bool is_goal_valid = (upper_surface < lower_surface) ? true : false;
   valid_goal(0) = goal(0);
   valid_goal(1) = goal(1);
-  float ratio = 0.3*(static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-  valid_goal(2) = lower_surface + ratio*(upper_surface - lower_surface);
+  valid_goal(2) = (upper_surface + lower_surface) / 2.0;
+  // float ratio = 0.5*(static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+  // valid_goal(2) = lower_surface + ratio*(upper_surface - lower_surface);
   return is_goal_valid;
 }
 
@@ -323,6 +324,16 @@ int main(int argc, char** argv) {
       std::cout << "Start and goal too close" << std::endl;
       continue;
     }
+    // Eigen::Vector2d start_2d(start(0), start(1));
+    // if (terrain_map->getGridMap().atPosition("distance_surface", start_2d) > 15.0) {
+    //   std::cout << "Start elevation too high." << std::endl;
+    //   continue;
+    // }
+    // Eigen::Vector2d goal_2d(goal(0), goal(1));
+    // if (terrain_map->getGridMap().atPosition("distance_surface", goal_2d) > 15.0) {
+    //   std::cout << "Goal elevation too high." << std::endl;
+    //   continue;
+    // }
     Eigen::Vector3d updated_start;
 
     if (validatePosition(terrain_map, start, updated_start)) {
